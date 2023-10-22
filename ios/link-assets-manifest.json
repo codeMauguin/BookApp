@@ -1,0 +1,13 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assert/font/Feathers.ttf",
+      "sha1": "e6604258b1ced5efd51360875d782fca65381d47"
+    },
+    {
+      "path": "src/assert/font/Ionicons.ttf",
+      "sha1": "0f178b4b286fe6dcbb453d725a81628c472f268d"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"module": "ESNext",
+		"lib": ["ES2022"],
+		"baseUrl": ".",
+		"skipLibCheck": true,
+		"paths": { "*": ["src/*"] }
+	},
+	"extends": "@tsconfig/react-native/tsconfig.json"
+}

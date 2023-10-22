@@ -1,0 +1,6 @@
+{
+	"name": "BookApp",
+	"displayName": "BookApp",
+	"pages": [],
+	"lazyCodeLoading": "requiredComponents"
+}
