@@ -6,8 +6,7 @@ import {
 import { Button }                        from "@rneui/themed";
 import Feather                           from "react-native-vector-icons/Feather";
 import { Box, ButtonIcon, Center, Text } from "@gluestack-ui/themed";
-import { isNull, isObject }              from "utils/types";
-import { Box }                           from "@gluestack-ui/themed";
+import { isNull, isObject } from 'utils/types';
 
 const KEYBOARD_CODE: (
 	| KeyboardCode

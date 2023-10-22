@@ -13,10 +13,10 @@ import ShareInsert, { ShareInsertRef }                  from "./ShareInsert";
 import Swipple                                          from "react-native-gesture-handler/Swipeable";
 import Animated, { LightSpeedOutLeft }                  from "react-native-reanimated";
 
-import { GestureHandlerRootView, TouchableOpacity } from "react-native-gesture-handler";
-import { HStack }                                   from "@gluestack-ui/themed";
-import { ActionsheetContent }                       from "@gluestack-ui/themed";
-import ShareInsert                                  from "./ShareInsert";
+import {
+	GestureHandlerRootView,
+	TouchableOpacity
+} from 'react-native-gesture-handler';
 
 function ShareItem({
 	                   item,
