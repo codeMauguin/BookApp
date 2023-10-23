@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
 	Box,
 	HStack,
@@ -43,6 +43,28 @@ async function getBill(page: Page, date: Date, aid: string) {
 	console.log('%c Line:35 🍩', 'color:#ed9ec7', rows);
 }
 
+async function statistics(year: number, month: number) {
+	console.log(
+		'%c Line:48 🍉',
+		'color:#f5ce50',
+		(
+			await db.executeAsync(
+				`SELECT * FROM Bill WHERE strftime('%Y', time) = ? AND strftime('%m', time) = ?`,
+				[year.toString(), month.toString().padStart(2, '0')]
+			)
+		).rows
+	);
+	const query =
+		"SELECT SUM(CASE WHEN type = '支出' THEN price ELSE 0 END) AS total_expense, SUM(CASE WHEN type = '收入' THEN price ELSE 0 END) AS total_income FROM Bill WHERE strftime('%Y', time) = ? AND strftime('%m', time) = ?";
+	const { rows } = await db.executeAsync(query, [
+		year.toString(),
+		month.toString().padStart(2, '0')
+	]);
+	console.log('%c Line:50 🍔 rows', 'color:#ed9ec7', rows);
+	if (isNull(rows) || isEmpty(rows)) return [];
+	return rows;
+}
+
 export default function () {
 	const [balance, setBalance] = React.useState<number>(0);
 	const [expenditure, setExpenditure] = React.useState<number>(0);
@@ -52,6 +74,9 @@ export default function () {
 		size: 15
 	});
 	const navigation = useNavigation<BottomTabNavigationProp<any, ''>>();
+	useEffect(() => {
+		statistics(2023, 10).then(res => {});
+	}, []);
 	return (
 		<ScrollView stickyHeaderIndices={[0]}>
 			{/* 统计 */}

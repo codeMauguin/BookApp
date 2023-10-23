@@ -103,6 +103,10 @@ function formatDate(date: Date, formatStr: string): string {
 	);
 }
 
+function toSQLString(date: Date) {
+	return formatDate(date, 'YYY-MM-DD HH:mm:SS');
+}
+
 export {
 	cloneDate,
 	getCurrentMonth,
@@ -111,5 +115,6 @@ export {
 	weekdayString,
 	getFirstDayOfMonth,
 	getDayDifference,
-	formatDate
+	formatDate,
+	toSQLString
 };
