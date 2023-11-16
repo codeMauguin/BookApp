@@ -13,31 +13,53 @@ import { isEmpty, isNull } from 'utils/types';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { Bill } from 'types/entity';
+import MyIcon from 'components/Icon/IconView';
+import { useApp } from 'model/AppContext';
+
 async function getBill(page: Page, date: Date, aid: string) {
-	const startDate =
-		date.getFullYear() +
-		'-' +
-		date.getMonth().toString().padStart(2, '0') +
-		'-01';
-	const endDate: string =
-		date.getFullYear() +
-		'-' +
-		date.getMonth().toString().padStart(2, '0') +
-		'-' +
-		new Date(date.getFullYear(), date.getMonth(), 0).getDate();
+	const curDate = `${date.getFullYear()}-${date.getMonth()}`;
 	const query = `
-  SELECT *
-  FROM Bill
-  LEFT JOIN Category ON Bill.categoryId = Category.id
-  LEFT JOIN Account ON Bill.accountId = Account.id
-  LEFT JOIN TagBillRelation ON Bill.id = TagBillRelation.billId
-  LEFT JOIN Tag ON TagBillRelation.tagId = Tag.id
-  WHERE Bill.time >= ${startDate} AND Bill.time <=${endDate}
-  AND Bill.aid = ${aid}
-  ORDER BY Bill.time DESC
-  LIMIT ${page.size} OFFSET ${page.offset}
+  SELECT
+    Bill.id AS billId,
+    Bill.type AS billType,
+    Bill.price AS billPrice,
+    Bill.remark AS billRemark,
+    Bill.time AS billTime,
+    Bill.modification AS billModification,
+    Bill.promotion AS billPromotion,
+    Category.id AS categoryId,
+    Category.name AS categoryName,
+    Icon.id AS iconId,
+    Icon.name AS iconName,
+    Icon.color AS iconColor,
+    Account.id AS accountId,
+    Account.name AS accountName,
+    Account.money AS accountMoney,
+    Account.card AS accountCard,
+    Account.level AS accountLevel,
+    Account.isDefault AS accountIsDefault,
+    Account.remark AS accountRemark,
+    Tag.id AS tagId,
+    Tag.name AS tagName
+FROM Bill
+LEFT JOIN Category ON Bill.categoryId = Category.id
+LEFT JOIN Icon ON Category.iconId = Icon.id
+LEFT JOIN Account ON Bill.accountId = Account.id
+LEFT JOIN TagBillRelation ON Bill.id = TagBillRelation.billId
+LEFT JOIN Tag ON TagBillRelation.tagId = Tag.id
+WHERE  strftime('%Y-%m', time) = ? AND Bill.aid = ?
+ORDER BY Bill.time DESC
+LIMIT ? OFFSET ?;
 `;
-	const { rows } = await db.executeAsync(query);
+	const { rows } = await db.executeAsync(query, [
+		curDate,
+		aid,
+		page.size,
+		page.offset
+	]);
+
+	console.log('%c Line:62 🥑', 'color:#ed9ec7', rows, page);
 	if (isNull(rows) || isEmpty(rows)) return [];
 
 	console.log('%c Line:35 🍩', 'color:#ed9ec7', rows);
@@ -73,6 +95,10 @@ export default function () {
 		offset: 0,
 		size: 15
 	});
+	const app = useApp();
+	useEffect(() => {
+		getBill(page, new Date(), app.current);
+	}, []);
 	const navigation = useNavigation<BottomTabNavigationProp<any, ''>>();
 	useEffect(() => {
 		statistics(2023, 10).then(res => {});

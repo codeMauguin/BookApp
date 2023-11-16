@@ -19,6 +19,18 @@ function calculate_bill_amount(bill: Bill): number {
 		: bill.price;
 }
 
+/**
+ * Updates the balanceAfterOrderPayment and balanceBeforeOrderPayment
+ * fields in the OrderOperationRecord table for a specific account
+ * to eliminate the impact of a bill insertion.
+ *
+ * @param {Transaction} tx - The transaction object used to execute the SQL query.
+ * @param {number} accountId - The ID of the account.
+ * @param {number} money - The amount of money to be added to the balance fields.
+ * @param {Date} time - The time threshold for selecting the records to update.
+ * @return {Promise<void>} A promise that resolves when the update is complete.
+ * It does not return any value.
+ */
 async function eliminate_the_impact_of_bill_insertion(
 	tx: Transaction,
 	accountId: number,
@@ -177,14 +189,15 @@ function insertBill(bill: Bill, app: AppContextProps) {
 					new Error('账单类型错误');
 			}
 
-			console.log('%c Line:189 🥑', 'color:#93c0a4', '账户操作成功');
 			const orderSQL = `INSERT INTO OrderOperationRecord (accountId, date, balanceBeforeOrderPayment, balanceAfterOrderPayment, isInit)
 VALUES (?, ?, ?, ?, 0);SELECT LAST_INSERT_ID()`;
 			const { rows } = await tx.executeAsync(
-				`SELECT balanceAfterOrderPayment FROM OrderOperationRecord WHERE accountId = ? ORDER BY id DESC LIMIT 1`,
-				[bill.account.id, bill.time]
+				`SELECT balanceAfterOrderPayment FROM OrderOperationRecord WHERE accountId = ? AND  strftime('%Y-%m-%d %H:%M:%S', date) < datetime(?) ORDER BY id DESC LIMIT 1`,
+				[
+					bill.account.id,
+					bill.time.toISOString().slice(0, 19).replace('T', ' ')
+				]
 			);
-
 			strictLength(rows, 1, '账单记录失败');
 			const { balanceAfterOrderPayment } = rows.item(0)!;
 			const { insertId: billOrderId } = await tx.executeAsync(orderSQL, [
@@ -202,7 +215,6 @@ VALUES (?, ?, ?, ?, 0);SELECT LAST_INSERT_ID()`;
 			strictNotNull(billOrderId, '订单生成失败');
 
 			const sql = `INSERT INTO Bill (type, categoryId, accountId, price, remark, time, aid,orderId) VALUES (?, ?, ?, ?, ?, ?, ?, ?);SELECT LAST_INSERT_ID();`;
-
 			const { rowsAffected, insertId: billId } = await tx.executeAsync(
 				sql,
 				[

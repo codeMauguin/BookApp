@@ -121,6 +121,7 @@ import { isEmpty, notNull, safeOperation } from 'utils/types';
 | ---------- | -------- |
 | id         | INTEGER  |
 | name       | TEXT     |
+| iconSize   | INTEGER  |
 
 ## LedgerRelationAccount 表
 
@@ -186,7 +187,10 @@ async function createData(): Promise<void> {
 	}
 	const inits: SQLBatchTuple[] = [
 		['INSERT INTO Config (id, current) VALUES (?, ?)', [1, 1]],
-		['INSERT INTO Ledger(id,name) VALUES (?, ?)', [1, '日常数据库']]
+		[
+			'INSERT INTO Ledger(id,name,iconSize) VALUES (?, ?,?)',
+			[1, '日常数据库', 22]
+		]
 	];
 	await db.executeBatchAsync(inits);
 	console.log('%c Line:47 🍔', 'color:#4fff4B', '数据加载完成');
@@ -213,8 +217,7 @@ async function createApp() {
             name TEXT,
             type TEXT,
             family TEXT,
-            color TEXT,
-            size INTEGER
+            color TEXT
         )`
 		],
 		[
@@ -298,7 +301,8 @@ async function createApp() {
 		[
 			`CREATE TABLE IF NOT EXISTS Ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT
+            name TEXT,
+			iconSize INTEGER
         )`
 		],
 		[

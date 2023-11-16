@@ -33,6 +33,7 @@ import {
 } from 'model/AppContext';
 import IconComponent, { IconRef } from 'components/Icon/Index';
 import IconView from 'components/Icon/IconView';
+import { strictEqual } from 'utils/assert';
 type AccountInsertRef = {
 	open: () => void;
 	close: () => void;
@@ -81,8 +82,11 @@ function saveAccount(
 					account.money,
 					true,
 					new Date(1970, 0, 1)
+						.toISOString()
+						.slice(0, 19)
+						.replace('T', ' ') // 格式化当前时间为 SQLite 支持的格式
 				]);
-
+			strictEqual(order_rows, 1, '账单记录插入失败');
 			const { insertId, rowsAffected } = await tx.executeAsync(sql, [
 				account.name,
 				account.money,
