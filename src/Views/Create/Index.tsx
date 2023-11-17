@@ -125,20 +125,6 @@ export default function () {
 			}
 		}
 	}, [index, expense_classification, revenue_classification]);
-	useEffect(() => {
-		navigation.setOptions({
-			headerTitle: () => (
-				<Tab
-					style={{ width: '70%' }}
-					value={index}
-					onChange={setIndex}
-					dense>
-					<Tab.Item>支出</Tab.Item>
-					<Tab.Item>收入</Tab.Item>
-				</Tab>
-			)
-		});
-	}, [index]);
 
 	const toast = useToast();
 

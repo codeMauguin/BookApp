@@ -103,8 +103,13 @@ function formatDate(date: Date, formatStr: string): string {
 	);
 }
 
+function toUTCTime(utcDate: string) {
+	const isoTimeString = utcDate.replace(' ', 'T') + 'Z';
+	return new Date(isoTimeString);
+}
+
 function toSQLString(date: Date) {
-	return formatDate(date, 'YYY-MM-DD HH:mm:SS');
+	return date.toISOString().slice(0, 19).replace('T', ' ');
 }
 
 export {
@@ -116,5 +121,6 @@ export {
 	getFirstDayOfMonth,
 	getDayDifference,
 	formatDate,
-	toSQLString
+	toSQLString,
+	toUTCTime
 };

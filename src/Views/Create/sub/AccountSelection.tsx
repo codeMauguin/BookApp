@@ -165,10 +165,10 @@ LEFT JOIN Icon ON Account.iconId = Icon.id   WHERE accountId in (${app.accountId
 								w={'$full'}
 								numColumns={column}
 								columnGap={20}
-								keyExtractor={(account: Account, index) =>
-									account.id.toString()
+								keyExtractor={(account: unknown, index) =>
+									(account as any).id.toString()
 								}
-								renderItem={({ item }: { item: Account }) => (
+								renderItem={({ item }: { item: any }) => (
 									<Button
 										onPress={() => commit(item)}
 										type="clear">

@@ -9,13 +9,13 @@ import {
 } from '@gluestack-ui/themed';
 import { Page } from 'types/Page';
 import { db } from 'sql/sql';
-import { isEmpty, isNull } from 'utils/types';
+import { formatTime, isEmpty, isNull } from 'utils/types';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Bill } from 'types/entity';
-import MyIcon from 'components/Icon/IconView';
 import { useApp } from 'model/AppContext';
+import { Bill } from 'types/entity';
+import { toUTCTime } from 'utils/DateUtil';
 
 async function getBill(page: Page, date: Date, aid: string) {
 	const curDate = `${date.getFullYear()}-${date.getMonth()}`;
@@ -30,28 +30,29 @@ async function getBill(page: Page, date: Date, aid: string) {
     Bill.promotion AS billPromotion,
     Category.id AS categoryId,
     Category.name AS categoryName,
+	Category.type AS categoryType,
+	Category.level AS categoryLevel,
+	Category.indexed AS categoryIndexed,
     Icon.id AS iconId,
     Icon.name AS iconName,
     Icon.color AS iconColor,
+	Icon.type as iconType,
     Account.id AS accountId,
     Account.name AS accountName,
     Account.money AS accountMoney,
     Account.card AS accountCard,
     Account.level AS accountLevel,
     Account.isDefault AS accountIsDefault,
-    Account.remark AS accountRemark,
-    Tag.id AS tagId,
-    Tag.name AS tagName
+    Account.remark AS accountRemark
 FROM Bill
 LEFT JOIN Category ON Bill.categoryId = Category.id
 LEFT JOIN Icon ON Category.iconId = Icon.id
 LEFT JOIN Account ON Bill.accountId = Account.id
-LEFT JOIN TagBillRelation ON Bill.id = TagBillRelation.billId
-LEFT JOIN Tag ON TagBillRelation.tagId = Tag.id
-WHERE  strftime('%Y-%m', time) = ? AND Bill.aid = ?
+WHERE  strftime('%Y-%m', time) = ? OR Bill.aid = ?
 ORDER BY Bill.time DESC
 LIMIT ? OFFSET ?;
 `;
+
 	const { rows } = await db.executeAsync(query, [
 		curDate,
 		aid,
@@ -59,50 +60,88 @@ LIMIT ? OFFSET ?;
 		page.offset
 	]);
 
-	console.log('%c Line:62 🥑', 'color:#ed9ec7', rows, page);
 	if (isNull(rows) || isEmpty(rows)) return [];
-
-	console.log('%c Line:35 🍩', 'color:#ed9ec7', rows);
+	const billList: Bill[] = [];
+	const map = new WeakMap();
+	for (let i = 0; i < rows.length; ++i) {
+		const bill = rows.item(i);
+		const billData: Bill = {
+			id: bill.billId,
+			type: bill.billType,
+			price: bill.billPrice,
+			remark: bill.billRemark,
+			time: toUTCTime(bill.billTime),
+			modification: bill.billModification,
+			promotion: bill.billPromotion,
+			tags: [],
+			category: {
+				id: bill.categoryId,
+				name: bill.categoryName,
+				icon: {
+					id: bill.iconId,
+					name: bill.iconName,
+					color: bill.iconColor,
+					type: bill.iconType
+				},
+				type: bill.categoryType,
+				level: bill.categoryLevel,
+				indexed: bill.categoryIndexed
+			},
+			account: {
+				id: bill.accountId,
+				name: bill.accountName,
+				money: bill.accountMoney,
+				card: bill.accountCard,
+				level: bill.accountLevel,
+				isDefault: bill.accountIsDefault,
+				remark: bill.accountRemark,
+				icon: null!,
+				payload: null!
+			},
+			people: [],
+			aid,
+			payload: null!
+		};
+		const key = Symbol.for(
+			`${billData.time.getFullYear()}-${billData.time.getMonth()}`
+		);
+		if (!map.has(key)) {
+			map.set(key, [billData]);
+		}
+	}
 }
 
 async function statistics(year: number, month: number) {
-	console.log(
-		'%c Line:48 🍉',
-		'color:#f5ce50',
-		(
-			await db.executeAsync(
-				`SELECT * FROM Bill WHERE strftime('%Y', time) = ? AND strftime('%m', time) = ?`,
-				[year.toString(), month.toString().padStart(2, '0')]
-			)
-		).rows
-	);
 	const query =
-		"SELECT SUM(CASE WHEN type = '支出' THEN price ELSE 0 END) AS total_expense, SUM(CASE WHEN type = '收入' THEN price ELSE 0 END) AS total_income FROM Bill WHERE strftime('%Y', time) = ? AND strftime('%m', time) = ?";
+		"SELECT SUM(CASE WHEN type = '支出' THEN price ELSE 0 END) AS total_expense, SUM(CASE WHEN type = '收入' THEN price ELSE 0 END) AS total_income FROM Bill WHERE strftime('%Y-%m', time) = ?";
 	const { rows } = await db.executeAsync(query, [
-		year.toString(),
-		month.toString().padStart(2, '0')
+		`${year}-${formatTime(month)}`
 	]);
-	console.log('%c Line:50 🍔 rows', 'color:#ed9ec7', rows);
-	if (isNull(rows) || isEmpty(rows)) return [];
-	return rows;
+	if (isNull(rows) || isEmpty(rows)) return [0, 0];
+	return [rows.item(0).total_expense, rows.item(0).total_income];
 }
 
 export default function () {
 	const [balance, setBalance] = React.useState<number>(0);
 	const [expenditure, setExpenditure] = React.useState<number>(0);
 	const [income, setIncome] = React.useState<number>(0);
+	const [date, setDate] = React.useState<Date>(new Date());
 	const [page, updatePage] = React.useState<Page>({
 		offset: 0,
 		size: 15
 	});
 	const app = useApp();
 	useEffect(() => {
-		getBill(page, new Date(), app.current);
+		getBill(page, date, app.current);
+		statistics(date.getFullYear(), date.getMonth() + 1).then(
+			([expenditure, income]) => {
+				setExpenditure(expenditure);
+				setIncome(income);
+			}
+		);
+		//获取统计数据
 	}, []);
 	const navigation = useNavigation<BottomTabNavigationProp<any, ''>>();
-	useEffect(() => {
-		statistics(2023, 10).then(res => {});
-	}, []);
 	return (
 		<ScrollView stickyHeaderIndices={[0]}>
 			{/* 统计 */}

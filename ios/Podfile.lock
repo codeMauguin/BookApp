@@ -377,7 +377,7 @@ PODS:
     - glog
   - react-native-menu (0.9.1):
     - React
-  - react-native-pager-view (6.2.2):
+  - react-native-pager-view (6.2.1):
     - React-Core
   - react-native-quick-sqlite (8.0.4):
     - React
@@ -787,7 +787,7 @@ SPEC CHECKSUMS:
   React-jsinspector: aaed4cf551c4a1c98092436518c2d267b13a673f
   React-logger: da1ebe05ae06eb6db4b162202faeafac4b435e77
   react-native-menu: 9728f90160c36b9a75481fc76e05354b99d54c59
-  react-native-pager-view: 02a5c4962530f7efc10dd51ee9cdabeff5e6c631
+  react-native-pager-view: d211379f61895b6349bd7e571b44a26d005c2975
   react-native-quick-sqlite: 9daf75c171e3d0bad2011f95cb501303e4a28363
   react-native-safe-area-context: 7aa8e6d9d0f3100a820efb1a98af68aa747f9284
   react-native-webview: 669ae162965f629a8d6a4bdd3b99a304d36ef1f2

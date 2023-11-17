@@ -7,7 +7,7 @@ import { Transaction } from 'react-native-quick-sqlite';
 import { Bill, BillPeople } from 'types/entity';
 import { toSQLString } from 'utils/DateUtil';
 import { strictNotNull, strictLength, strictEqual } from 'utils/assert';
-import { notNull, safeOperation } from 'utils/types';
+import { isEmpty, notNull, safeOperation } from 'utils/types';
 
 function calculate_bill_amount(bill: Bill): number {
 	return bill.type === '支出'
@@ -38,12 +38,7 @@ async function eliminate_the_impact_of_bill_insertion(
 	time: Date
 ) {
 	const sql = `UPDATE OrderOperationRecord SET balanceAfterOrderPayment = balanceAfterOrderPayment + ?,balanceBeforeOrderPayment = balanceBeforeOrderPayment + ? WHERE accountId = ? AND date > ?`;
-	return tx.executeAsync(sql, [
-		money,
-		money,
-		accountId,
-		time
-	]); /* 无法判断是否更新完成因为在这个时间之后可能没有记录 */
+	return tx.executeAsync(sql, [money, money, accountId, toSQLString(time)]); /* 无法判断是否更新完成因为在这个时间之后可能没有记录 */
 }
 
 async function insertPeople(
@@ -61,7 +56,7 @@ async function insertPeople(
 				people.title,
 				people.remark,
 				people.money,
-				people.time,
+				toSQLString(people.time),
 				people.status,
 				null // orderId 初始化为 null
 			];
@@ -160,7 +155,6 @@ function insertBill(bill: Bill, app: AppContextProps) {
 	//根据账单类型进行账户的扣费还是收入
 	app.db.transaction(async tx => {
 		let error = false;
-
 		try {
 			switch (bill.type) {
 				case '支出':
@@ -189,32 +183,78 @@ function insertBill(bill: Bill, app: AppContextProps) {
 					new Error('账单类型错误');
 			}
 
-			const orderSQL = `INSERT INTO OrderOperationRecord (accountId, date, balanceBeforeOrderPayment, balanceAfterOrderPayment, isInit)
-VALUES (?, ?, ?, ?, 0);SELECT LAST_INSERT_ID()`;
 			const { rows } = await tx.executeAsync(
-				`SELECT balanceAfterOrderPayment FROM OrderOperationRecord WHERE accountId = ? AND  strftime('%Y-%m-%d %H:%M:%S', date) < datetime(?) ORDER BY id DESC LIMIT 1`,
-				[
-					bill.account.id,
-					bill.time.toISOString().slice(0, 19).replace('T', ' ')
-				]
+				`
+SELECT balanceAfterOrderPayment
+FROM OrderOperationRecord
+WHERE accountId = ?
+  AND strftime('%Y-%m-%d %H:%M:%S', date) < datetime(?)
+ORDER BY id DESC
+LIMIT 1;
+
+				`,
+				[bill.account.id, toSQLString(bill.time)]
 			);
+			if (__DEV__) {
+				console.log(
+					'%c Line:200 🍖',
+					'color:#465975',
+					`账单最近的记录${JSON.stringify(rows)}`
+				);
+			}
 			strictLength(rows, 1, '账单记录失败');
 			const { balanceAfterOrderPayment } = rows.item(0)!;
-			const { insertId: billOrderId } = await tx.executeAsync(orderSQL, [
-				bill.account.id,
-				bill.time,
-				balanceAfterOrderPayment,
-				safeOperation(
-					balanceAfterOrderPayment,
-					calculate_bill_amount(bill),
-					bill.type === '支出'
-						? safeOperation.subtrahend
-						: safeOperation.add
-				)
-			]);
-			strictNotNull(billOrderId, '订单生成失败');
+			const orderSQL = `
+INSERT INTO OrderOperationRecord (
+    accountId,
+    date,
+    balanceBeforeOrderPayment,
+    balanceAfterOrderPayment,
+    isInit
+)
+VALUES (?, ?, ?, ?, 0);
 
-			const sql = `INSERT INTO Bill (type, categoryId, accountId, price, remark, time, aid,orderId) VALUES (?, ?, ?, ?, ?, ?, ?, ?);SELECT LAST_INSERT_ID();`;
+SELECT LAST_INSERT_ID();
+			`;
+			const { insertId: billOrderId, rowsAffected: orderRowsAffected } =
+				await tx.executeAsync(orderSQL, [
+					bill.account.id,
+					toSQLString(bill.time),
+					balanceAfterOrderPayment,
+					safeOperation(
+						balanceAfterOrderPayment,
+						calculate_bill_amount(bill),
+						bill.type === '支出'
+							? safeOperation.subtrahend
+							: safeOperation.add
+					)
+				]);
+			strictEqual(orderRowsAffected, 1, '订单生成失败');
+			strictNotNull(billOrderId, '订单生成失败');
+			if (__DEV__) {
+				console.log(
+					'%c Line:239 🥥',
+					'color:#42b983',
+					`当前的账单📎：${billOrderId}`
+				);
+			}
+
+			const sql = `
+INSERT INTO Bill (
+    type,
+    categoryId,
+    accountId,
+    price,
+    remark,
+    time,
+    aid,
+    orderId
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+SELECT LAST_INSERT_ID();
+
+			`;
 			const { rowsAffected, insertId: billId } = await tx.executeAsync(
 				sql,
 				[
@@ -238,8 +278,6 @@ VALUES (?, ?, ?, ?, 0);SELECT LAST_INSERT_ID()`;
 					[billId, billOrderId]
 				);
 			strictEqual(rowsAffected, 1, '订单更新失败');
-			//账单的数据已经插入完毕
-			//更新插入后对数据库的影响
 			await eliminate_the_impact_of_bill_insertion(
 				tx,
 				bill.account.id,

@@ -18,7 +18,8 @@ interface Icon {
 	type: string;
 	family?: FontKey;
 	color?: string;
-	size: number;
+	size?: number;
+	radius?: number;
 }
 
 interface Category {
@@ -74,7 +75,7 @@ interface Bill {
 	modification?: Date;
 	promotion?: number;
 	people: BillPeople[];
-	aid: number;
+	aid: string | number;
 	payload: OrderOperationRecord;
 }
 interface BaseRef {

@@ -11,9 +11,7 @@ import {
 	VStack,
 	Box,
 	Center,
-	useToast,
-	Textarea,
-	TextareaInput
+	useToast
 } from '@gluestack-ui/themed';
 import { Button, Card, Input, Switch } from '@rneui/themed';
 import React, { useImperativeHandle } from 'react';
@@ -34,6 +32,7 @@ import {
 import IconComponent, { IconRef } from 'components/Icon/Index';
 import IconView from 'components/Icon/IconView';
 import { strictEqual } from 'utils/assert';
+import { number } from 'echarts';
 type AccountInsertRef = {
 	open: () => void;
 	close: () => void;
@@ -69,12 +68,13 @@ function saveAccount(
 	}
 
 	const updateDefaultSql = 'UPDATE Account SET isDefault = false';
-	const sql = `INSERT INTO Account (name, money, isDefault,iconId,remark,orderId,level) VALUES(?,?,?,?,?,?,?);SELECT LAST_INSERT_ID();`;
+
 	const order_sql =
-		'INSERT INTO OrderOperationRecord (balanceBeforeOrderPayment,balanceAfterOrderPayment,isInit,date) VALUES(?,?,?,?);SELECT LAST_INSERT_ID();';
+		'INSERT INTO OrderOperationRecord (balanceBeforeOrderPayment,balanceAfterOrderPayment,isInit,date,accountId) VALUES(?,?,?,?,?);SELECT LAST_INSERT_ID();';
 	app.db.transaction(async tx => {
 		try {
-			await tx.executeAsync(updateDefaultSql);
+			//当前账户是否为默认
+			if (account.isDefault) await tx.executeAsync(updateDefaultSql);
 
 			const { insertId: order_id, rowsAffected: order_rows } =
 				await tx.executeAsync(order_sql, [
@@ -84,9 +84,11 @@ function saveAccount(
 					new Date(1970, 0, 1)
 						.toISOString()
 						.slice(0, 19)
-						.replace('T', ' ') // 格式化当前时间为 SQLite 支持的格式
+						.replace('T', ' '), // 格式化当前时间为 SQLite 支持的格式,
+					1
 				]);
 			strictEqual(order_rows, 1, '账单记录插入失败');
+			const sql = `INSERT INTO Account (name, money, isDefault,iconId,remark,orderId,level) VALUES(?,?,?,?,?,?,?);SELECT LAST_INSERT_ID();`;
 			const { insertId, rowsAffected } = await tx.executeAsync(sql, [
 				account.name,
 				account.money,
@@ -96,23 +98,13 @@ function saveAccount(
 				order_id,
 				Number.MAX_VALUE
 			]);
-			await tx.executeAsync(
-				'UPDATE OrderOperationRecord SET accountId = ? WHERE id = ?',
-				[insertId, order_id]
-			);
-			await tx.executeAsync(
+			strictEqual(rowsAffected, 1, '插入账户失败');
+
+			const { rowsAffected: relationRows } = await tx.executeAsync(
 				'INSERT INTO LedgerRelationAccount (accountId,ledgerId) VALUES(?,?)',
 				[insertId, app.current]
 			);
-			if (1 !== rowsAffected || 1 !== order_rows) {
-				tx.rollback();
-				showToast(toast, {
-					title: '保存失败',
-					action: 'error',
-					variant: 'solid'
-				});
-				return;
-			}
+			strictEqual(relationRows, 1, '关联账户失败');
 			update.accountIds(ids => [insertId!, ...ids]);
 			account.id = insertId;
 			account.level = Number.MAX_VALUE;
@@ -126,17 +118,22 @@ function saveAccount(
 				billPeople: void 0,
 				date: new Date(1970, 0, 1)
 			};
-
+			const { rowsAffected: updateRows } = await tx.executeAsync(
+				'UPDATE OrderOperationRecord SET accountId = ? WHERE id = ?',
+				[insertId, order_id]
+			);
+			strictEqual(updateRows, 1, '修改订单操作记录失败');
 			callback?.(account as Account);
 			tx.commit();
 		} catch (error) {
+			console.log('%c Line:127 🥕 error', 'color:#465975', error);
+			tx.rollback();
 			showToast(toast, {
 				title: '保存失败',
 				action: 'error',
 				variant: 'solid'
 			});
-
-			tx.rollback();
+		} finally {
 		}
 	});
 }
